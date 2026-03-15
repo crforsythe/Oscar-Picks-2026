@@ -113,65 +113,65 @@ else:
         df_want_corr = df[["User", "Should Win Correct"]].sort_values(by="Should Win Correct", ascending=False)
         render_bar_chart(df_want_corr, "User", "Should Win Correct", "4) 'Should Win' Correct Picks")
 
-    st.markdown("---")
-    st.subheader("👀 Everyone's Picks")
+st.markdown("---")
+st.subheader("👀 Everyone's Picks")
+
+pick_type = st.radio("Select Pick Type", ["Will Win", "Should Win"], horizontal=True)
+
+nom_dict = {n["id"]: n for n in nominees}
+user_names = list(user_dict.values())
+
+table_data = []
+
+# Sort categories by point value descending
+for cat in sorted(categories, key=lambda x: x["point_value"], reverse=True):
+    row = {"Category": f"{cat['name']} ({cat['point_value']} pts)"}
+    winner_id = cat.get("winner_id")
     
-    pick_type = st.radio("Select Pick Type", ["Will Win", "Should Win"], horizontal=True)
-    
-    nom_dict = {n["id"]: n for n in nominees}
-    user_names = list(user_dict.values())
-    
-    table_data = []
-    
-    # Sort categories by point value descending
-    for cat in sorted(categories, key=lambda x: x["point_value"], reverse=True):
-        row = {"Category": f"{cat['name']} ({cat['point_value']} pts)"}
-        winner_id = cat.get("winner_id")
+    for user_id, user_name in user_dict.items():
+        user_pick = next((p for p in picks if p["user_id"] == user_id and p["category_id"] == cat["id"]), None)
         
-        for user_id, user_name in user_dict.items():
-            user_pick = next((p for p in picks if p["user_id"] == user_id and p["category_id"] == cat["id"]), None)
-            
-            if user_pick:
-                if pick_type == "Will Win":
-                    nom_id = user_pick.get("nominee_id")
-                else:
-                    nom_id = user_pick.get("want_nominee_id")
+        if user_pick:
+            if pick_type == "Will Win":
+                nom_id = user_pick.get("nominee_id")
+            else:
+                nom_id = user_pick.get("want_nominee_id")
+                
+            if nom_id:
+                nom = nom_dict.get(nom_id)
+                nom_name = nom["name"] if nom else "Unknown"
+                if nom and nom.get("movie") and nom["name"] != nom["movie"]:
+                    nom_name += f" ({nom['movie']})"
                     
-                if nom_id:
-                    nom = nom_dict.get(nom_id)
-                    nom_name = nom["name"] if nom else "Unknown"
-                    if nom and nom.get("movie") and nom["name"] != nom["movie"]:
-                        nom_name += f" ({nom['movie']})"
-                        
-                    is_correct = winner_id is not None and nom_id == winner_id
-                    is_incorrect = winner_id is not None and nom_id != winner_id
-                    
-                    if is_correct:
-                        row[user_name] = f"✅ {nom_name}"
-                    elif is_incorrect:
-                        row[user_name] = f"❌ {nom_name}"
-                    else:
-                        row[user_name] = f"⏳ {nom_name}"
+                is_correct = winner_id is not None and nom_id == winner_id
+                is_incorrect = winner_id is not None and nom_id != winner_id
+                
+                if is_correct:
+                    row[user_name] = f"✅ {nom_name}"
+                elif is_incorrect:
+                    row[user_name] = f"❌ {nom_name}"
                 else:
-                    row[user_name] = "---"
+                    row[user_name] = f"⏳ {nom_name}"
             else:
                 row[user_name] = "---"
-                
-        table_data.append(row)
-        
-    picks_df = pd.DataFrame(table_data)
+        else:
+            row[user_name] = "---"
+            
+    table_data.append(row)
     
-    def color_cells(val):
-        if isinstance(val, str):
-            if val.startswith("✅"):
-                return 'background-color: rgba(40, 167, 69, 0.2)'
-            elif val.startswith("❌"):
-                return 'background-color: rgba(220, 53, 69, 0.2)'
-        return ''
-        
-    if hasattr(picks_df.style, 'map'):
-        styled_df = picks_df.style.map(color_cells, subset=user_names)
-    else:
-        styled_df = picks_df.style.applymap(color_cells, subset=user_names)
-        
-    st.dataframe(styled_df, use_container_width=True, hide_index=True)
+picks_df = pd.DataFrame(table_data)
+
+def color_cells(val):
+    if isinstance(val, str):
+        if val.startswith("✅"):
+            return 'background-color: rgba(40, 167, 69, 0.2)'
+        elif val.startswith("❌"):
+            return 'background-color: rgba(220, 53, 69, 0.2)'
+    return ''
+    
+if hasattr(picks_df.style, 'map'):
+    styled_df = picks_df.style.map(color_cells, subset=user_names)
+else:
+    styled_df = picks_df.style.applymap(color_cells, subset=user_names)
+    
+st.dataframe(styled_df, use_container_width=True, hide_index=True)
