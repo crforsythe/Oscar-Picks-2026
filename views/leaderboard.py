@@ -11,10 +11,11 @@ def fetch_leaderboard_data():
     users = supabase.table("users").select("*").execute().data
     categories = supabase.table("categories").select("*").execute().data
     picks = supabase.table("picks").select("*").execute().data
-    return users, categories, picks
+    nominees = supabase.table("nominees").select("*").execute().data
+    return users, categories, picks, nominees
 
 try:
-    users, categories, picks = fetch_leaderboard_data()
+    users, categories, picks, nominees = fetch_leaderboard_data()
 except Exception as e:
     st.error(f"Error fetching data: {e}")
     st.stop()
@@ -55,14 +56,14 @@ for user_id, user_name in user_dict.items():
     results.append({
         "User": user_name,
         "Will Win Points": will_points,
-        "Want to Win Points": want_points,
+        "Should Win Points": want_points,
         "Will Win Correct": will_correct,
-        "Want to Win Correct": want_correct
+        "Should Win Correct": want_correct
     })
 
 df = pd.DataFrame(results)
 
-if df.empty or df[["Will Win Points", "Want to Win Points", "Will Win Correct", "Want to Win Correct"]].sum().sum() == 0:
+if df.empty or df[["Will Win Points", "Should Win Points", "Will Win Correct", "Should Win Correct"]].sum().sum() == 0:
     st.info("No points have been scored yet. Admin must set official winners before charts appear.")
 else:
     import plotly.express as px
@@ -102,12 +103,75 @@ else:
         render_bar_chart(df_will_corr, "User", "Will Win Correct", "3) 'Will Win' Correct Picks")
 
     with col2:
-        # 2. Points for "Want to Win"
-        df_want_pts = df[["User", "Want to Win Points"]].sort_values(by="Want to Win Points", ascending=False)
-        render_bar_chart(df_want_pts, "User", "Want to Win Points", "2) 'Want to Win' Points")
+        # 2. Points for "Should Win"
+        df_want_pts = df[["User", "Should Win Points"]].sort_values(by="Should Win Points", ascending=False)
+        render_bar_chart(df_want_pts, "User", "Should Win Points", "2) 'Should Win' Points")
         
         st.markdown("<br><br>", unsafe_allow_html=True)
         
-        # 4. Correct Guesses for "Want to Win"
-        df_want_corr = df[["User", "Want to Win Correct"]].sort_values(by="Want to Win Correct", ascending=False)
-        render_bar_chart(df_want_corr, "User", "Want to Win Correct", "4) 'Want to Win' Correct Picks")
+        # 4. Correct Guesses for "Should Win"
+        df_want_corr = df[["User", "Should Win Correct"]].sort_values(by="Should Win Correct", ascending=False)
+        render_bar_chart(df_want_corr, "User", "Should Win Correct", "4) 'Should Win' Correct Picks")
+
+    st.markdown("---")
+    st.subheader("👀 Everyone's Picks")
+    
+    pick_type = st.radio("Select Pick Type", ["Will Win", "Should Win"], horizontal=True)
+    
+    nom_dict = {n["id"]: n for n in nominees}
+    user_names = list(user_dict.values())
+    
+    table_data = []
+    
+    # Sort categories by point value descending
+    for cat in sorted(categories, key=lambda x: x["point_value"], reverse=True):
+        row = {"Category": f"{cat['name']} ({cat['point_value']} pts)"}
+        winner_id = cat.get("winner_id")
+        
+        for user_id, user_name in user_dict.items():
+            user_pick = next((p for p in picks if p["user_id"] == user_id and p["category_id"] == cat["id"]), None)
+            
+            if user_pick:
+                if pick_type == "Will Win":
+                    nom_id = user_pick.get("nominee_id")
+                else:
+                    nom_id = user_pick.get("want_nominee_id")
+                    
+                if nom_id:
+                    nom = nom_dict.get(nom_id)
+                    nom_name = nom["name"] if nom else "Unknown"
+                    if nom and nom.get("movie") and nom["name"] != nom["movie"]:
+                        nom_name += f" ({nom['movie']})"
+                        
+                    is_correct = winner_id is not None and nom_id == winner_id
+                    is_incorrect = winner_id is not None and nom_id != winner_id
+                    
+                    if is_correct:
+                        row[user_name] = f"✅ {nom_name}"
+                    elif is_incorrect:
+                        row[user_name] = f"❌ {nom_name}"
+                    else:
+                        row[user_name] = f"⏳ {nom_name}"
+                else:
+                    row[user_name] = "---"
+            else:
+                row[user_name] = "---"
+                
+        table_data.append(row)
+        
+    picks_df = pd.DataFrame(table_data)
+    
+    def color_cells(val):
+        if isinstance(val, str):
+            if val.startswith("✅"):
+                return 'background-color: rgba(40, 167, 69, 0.2)'
+            elif val.startswith("❌"):
+                return 'background-color: rgba(220, 53, 69, 0.2)'
+        return ''
+        
+    if hasattr(picks_df.style, 'map'):
+        styled_df = picks_df.style.map(color_cells, subset=user_names)
+    else:
+        styled_df = picks_df.style.applymap(color_cells, subset=user_names)
+        
+    st.dataframe(styled_df, use_container_width=True, hide_index=True)

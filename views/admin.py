@@ -78,6 +78,16 @@ with st.form("admin_winners_form"):
                 supabase.table("categories").update({"winner_id": winner_id}).eq("id", cat_id).execute()
             st.success("Official winners have been updated!")
             fetch_base_data.clear() # clear cache so summary updates
+            from views.leaderboard import fetch_leaderboard_data
+            try:
+                fetch_leaderboard_data.clear()
+            except:
+                pass
+            from views.summary import fetch_base_data as summary_fetch_base_data
+            try:
+                summary_fetch_base_data.clear()
+            except:
+                pass
             st.balloons()
         except Exception as e:
             st.error(f"Error saving winners: {e}")

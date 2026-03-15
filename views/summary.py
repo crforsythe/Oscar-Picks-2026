@@ -64,7 +64,7 @@ else:
                 if nom_movie and nom_name != nom_movie:
                     display_will += f" ({nom_movie})"
                     
-            # Want to Win String
+            # Should Win String
             display_want = "---"
             if want_pick_id:
                 want_name = next((n['name'] for n in cat_noms if n['id'] == want_pick_id), "Unknown")
@@ -90,7 +90,7 @@ else:
             summary_data.append({
                 "Category": cat["name"],
                 "Who You Think Will Win": display_will,
-                "Who You Want to Win": display_want,
+                "Who You Think Should Win": display_want,
                 "Points Value": cat["point_value"],
                 "Status (Will Win)": status_will,
                 "Earned": f"+{points_earned}" if points_earned > 0 else "-"
