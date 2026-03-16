@@ -39,17 +39,24 @@ for user_id, user_name in user_dict.items():
     
     for p in user_picks:
         cat = cat_dict.get(p["category_id"])
-        if not cat or not cat.get("winner_id"):
+        
+        # Hardcode for tied category: Live Action Short
+        TIE_CATEGORY_ID = "aebe81d6-36d2-4266-a9d2-d37d977cce9f"
+        TIE_WINNERS = ["d2efbd9c-878f-478d-9d9f-73055bbb4cbf", "52586d8f-62cb-47ca-9e0d-559f7cca9e05"]
+        
+        is_tied_category = cat and cat["id"] == TIE_CATEGORY_ID
+        
+        if not cat or (not cat.get("winner_id") and not is_tied_category):
             continue
             
         points_val = cat.get("point_value", 0)
-        actual_winner = cat["winner_id"]
+        actual_winner = cat.get("winner_id")
         
-        if p.get("nominee_id") == actual_winner:
+        if (p.get("nominee_id") == actual_winner) or (is_tied_category and p.get("nominee_id") in TIE_WINNERS):
             will_points += points_val
             will_correct += 1
             
-        if p.get("want_nominee_id") == actual_winner:
+        if (p.get("want_nominee_id") == actual_winner) or (is_tied_category and p.get("want_nominee_id") in TIE_WINNERS):
             want_points += points_val
             want_correct += 1
             
@@ -142,9 +149,16 @@ for cat in sorted(categories, key=lambda x: x["point_value"], reverse=True):
                 nom_name = nom["name"] if nom else "Unknown"
                 if nom and nom.get("movie") and nom["name"] != nom["movie"]:
                     nom_name += f" ({nom['movie']})"
-                    
-                is_correct = winner_id is not None and nom_id == winner_id
-                is_incorrect = winner_id is not None and nom_id != winner_id
+                        
+                is_correct = False
+                is_incorrect = False
+                
+                if cat["id"] == "aebe81d6-36d2-4266-a9d2-d37d977cce9f":
+                    is_correct = nom_id in ["d2efbd9c-878f-478d-9d9f-73055bbb4cbf", "52586d8f-62cb-47ca-9e0d-559f7cca9e05"]
+                    is_incorrect = not is_correct and winner_id is not None # Only mark incorrect if we've ostensibly made a call or have a winner
+                else:
+                    is_correct = winner_id is not None and nom_id == winner_id
+                    is_incorrect = winner_id is not None and nom_id != winner_id
                 
                 if is_correct:
                     row[user_name] = f"✅ {nom_name}"

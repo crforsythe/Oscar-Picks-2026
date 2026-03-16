@@ -77,9 +77,20 @@ else:
             points_earned = 0
             
             actual_winner_id = cat.get("winner_id")
-            if actual_winner_id and pick_id:
+            
+            TIE_CATEGORY_ID = "aebe81d6-36d2-4266-a9d2-d37d977cce9f"
+            TIE_WINNERS = ["d2efbd9c-878f-478d-9d9f-73055bbb4cbf", "52586d8f-62cb-47ca-9e0d-559f7cca9e05"]
+            is_tied_category = cat_id == TIE_CATEGORY_ID
+            
+            if (actual_winner_id or is_tied_category) and pick_id:
                 possible_score += cat["point_value"]
-                if pick_id == actual_winner_id:
+                is_correct = False
+                if is_tied_category:
+                    is_correct = pick_id in TIE_WINNERS
+                else:
+                    is_correct = pick_id == actual_winner_id
+                    
+                if is_correct:
                     status_will = "✅ Correct"
                     points_earned = cat["point_value"]
                     total_score += points_earned
